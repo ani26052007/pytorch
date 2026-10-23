@@ -6589,6 +6589,20 @@ def forward(self, arg0_1, arg1_1, arg2_1, arg3_1, arg4_1):
         torch.testing.assert_close(out_eager, out_compiled, atol=3e-3, rtol=2e-3)
 
     @supported_platform
+    @skip_on_cpu
+    def test_dynamic_shapes_with_symbolic_default_scale(self, device):
+        def attention(x, head_dim):
+            q = x.view(1, x.shape[1], -1, head_dim).transpose(1, 2)
+            return flex_attention(q, q, q)
+
+        compiled = torch.compile(attention, fullgraph=True, dynamic=True)
+        for tokens in (128, 256):
+            x = torch.randn(1, tokens, 1024, device=device, dtype=torch.float32)
+            torch.testing.assert_close(
+                compiled(x, 64), attention(x, 64), atol=5e-3, rtol=5e-3
+            )
+
+    @supported_platform
     def test_dynamic_shapes_with_max_autotune(self, device):
         make_tensor = functools.partial(
             torch.ones,

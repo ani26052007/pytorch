@@ -42,6 +42,7 @@ from .common import (
     load_flex_template,
     maybe_realize,
     realize_captures_for_cutedsl,
+    resolve_sm_scale,
     set_head_dim_values,
     SubgraphResults,
 )
@@ -448,7 +449,9 @@ def flex_attention(
         dtype=torch.float32,  # The max scores are always stored in fp32 regardless of the input dtype
         device=query.get_device(),
     )
-    kernel_options.setdefault("SM_SCALE", scale)
+    kernel_options.setdefault(
+        "SM_SCALE", resolve_sm_scale(scale, qk_head_dim, V.graph.sizevars)
+    )
 
     # Determine GQA broadcast factor.
     gqa_shared_heads = FloorDiv(Hq, Hkv)
@@ -1122,7 +1125,9 @@ def flex_attention_backward(*args, **kwargs):
         device=value.get_device(),
     )
 
-    kernel_options.setdefault("SM_SCALE", scale)
+    kernel_options.setdefault(
+        "SM_SCALE", resolve_sm_scale(scale, qk_head_dim, V.graph.sizevars)
+    )
 
     # Determine GQA factor
     gqa_shared_heads = FloorDiv(Hq, Hkv)

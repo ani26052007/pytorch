@@ -490,6 +490,29 @@ def set_head_dim_values(
     )
 
 
+def resolve_sm_scale(scale, qk_head_dim, graph_sizevars):
+    """
+    Return `scale` as something that is safe to embed in generated kernel source.
+
+    With dynamic shapes the default scale (1 / sqrt(head_dim)) is a sympy
+    expression whose repr references sympy functions that don't exist in the
+    generated module. The head dim is specialized (and guarded) anyway, so fold
+    the expression into a concrete Python float.
+    """
+    if not isinstance(scale, sympy.Basic):
+        return scale
+
+    qk_head_dim_static = graph_sizevars.guard_int(qk_head_dim)
+    scale = scale.xreplace(
+        {sympy.sympify(qk_head_dim): sympy.Integer(qk_head_dim_static)}
+    )
+    # Anything left over is specialized the same way symbols in
+    # kernel_options already are (see flex_attention.py).
+    for sym in list(scale.free_symbols):
+        scale = scale.xreplace({sym: sympy.Integer(graph_sizevars.guard_int(sym))})
+    return float(scale)
+
+
 def is_power_of_2(n):
     return n != 0 and ((n & (n - 1)) == 0)
 

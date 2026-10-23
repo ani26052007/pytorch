@@ -31,6 +31,7 @@ from .common import (
     get_fwd_subgraph_outputs,
     load_flex_template,
     maybe_realize,
+    resolve_sm_scale,
     set_head_dim_values,
 )
 
@@ -280,7 +281,9 @@ def create_flex_decoding_kernel(*args, **kwargs):
 
     # TODO: fix autotuning.
 
-    kernel_options.setdefault("SM_SCALE", scale)
+    kernel_options.setdefault(
+        "SM_SCALE", resolve_sm_scale(scale, qk_head_dim, V.graph.sizevars)
+    )
     if "SPLIT_KV" not in kernel_options:
         kernel_options["SPLIT_KV"] = get_split_k(B, Hkv, seq_len_kv, device)
     MAX_SPLIT_KV = kernel_options["SPLIT_KV"]
